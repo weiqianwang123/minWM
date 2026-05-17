@@ -33,7 +33,6 @@ MASTER_PORT=${MASTER_PORT:-29620}
 echo "=== Inference: Bidirectional Camera Control ==="
 echo "  Config:     $CONFIG_PATH"
 echo "  Checkpoint: $CHECKPOINT_PATH"
-echo "  Trajectory: $TRAJECTORY"
 echo "  Output:     $OUTPUT_FOLDER"
 
 export SP_SIZE=$SP_SIZE

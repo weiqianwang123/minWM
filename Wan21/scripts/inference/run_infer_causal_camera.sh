@@ -39,7 +39,6 @@ MASTER_PORT=${MASTER_PORT:-29622}
 echo "=== Inference: Causal Camera Control (ODE/CD/DMD) ==="
 echo "  Config:     $CONFIG_PATH"
 echo "  Checkpoint: $CHECKPOINT_PATH"
-echo "  Trajectory: $TRAJECTORY"
 echo "  Output:     $OUTPUT_FOLDER"
 
 export SP_SIZE=$SP_SIZE

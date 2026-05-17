@@ -167,22 +167,12 @@ logs/
 cache/
 ckpts/
 
-agent/
-hyvideo/utils/rewrite/i2v_env.sh
-dummy_data/
 wandb/
 output*/
 preencoded/
-kb_configs/
 data/
-dummy_latent
-real_latent
-checkpoints
-outputs-dmd-test
 *mp4
 .safetensors
 .claude
-kb_launch.sh
-Wan21_prope_ref/
-agent
 dataset
+Wan21/wan_models
