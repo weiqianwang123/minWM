@@ -60,7 +60,7 @@ Bidirectional SFT      ──▶   Stage 1   Teacher Forcing AR Diffusion
 **1.3 Inference.**
 
 - ✅ 4-step DMD inference for HY Action2V / HY TI2V / Wan Action2V, multi-GPU sequence parallelism, camera-trajectory control via pose strings (`"a*4,w*8,s*7"`) or JSON files
-- 🚧 Inference acceleration [to do]
+- 🚧 Inference acceleration [TBD]
 
 ### 2. Multi-Backbone Support
 
@@ -80,7 +80,7 @@ The HunyuanVideo 1.5 and Wan 2.1 lines walk through the full 4-stage pipeline �
 
 Both lines share the same trainer / loss / dataset abstractions, so adding a third backbone is structurally a wrapper-and-config exercise.
 
-#### 2.2 Finetuning an Existing Video World Model 🚧 [to do]
+#### 2.2 Finetuning an Existing Video World Model 🚧 [TBD]
 
 The forthcoming `worldplay-finetune` entry will let you start from an already-trained video world model and adapt it to new conditions, scenes, or resolutions — without rerunning the 4-stage pipeline from scratch.
 
@@ -91,28 +91,23 @@ We aim to support both multiple condition types and multiple injection methods, 
 #### 3.1 Supported Conditions
 
 - ✅ Camera pose
-- 🚧 Human pose [to do]
+- 🚧 Human pose [TBD]
 
 #### 3.2 Supported Injection Methods
 
 - ✅ ProPE
-- 🚧 Latent concat [to do]
-- 🚧 Cross-attention [to do]
+- 🚧 Latent concat [TBD]
+- 🚧 Cross-attention [TBD]
 
 ### 4. Claude Skills — Modify the Framework with an LLM Assistant
-
-> 🚧 *In development.*
-
 We are packaging our project experience across the CF / CF++ pipeline as Claude skills, so that an LLM assistant can help users debug failures and integrate new models without reverse-engineering the whole repo.
-
-**Planned skills:**
 
 - 🐛 **`debug-world-model`** — collected failure modes from the training pipeline (loss NaN, frame-to-frame jitter, camera drift, memory attenuation, distillation collapse, …). Claude diagnoses likely root causes from your symptoms instead of guessing.
 - 🔌 **`integrate-new-backbone`** — step-by-step recipe for plugging a new video DiT into minWM, grounded in the HunyuanVideo and Wan reference integrations — e.g. *"look at how HY does teacher forcing here, do the same for your model there"*.
 
 ### 5. Onboarding Knowledge — for Newcomers to World Models
 
-> 🚧 *In development.*
+- `onboarding-world-model`
 
 A third Claude skill aimed at researchers entering the world-model space for the first time. Two parts:
 
@@ -131,7 +126,7 @@ pip install flash-attn --no-build-isolation
 export PYTHONPATH="$PWD/HY15:$PWD/Wan21:$PWD/shared:$PYTHONPATH"
 ```
 
-## 🧱 Model Checkpoints
+<details> <summary> 🧱 Model Checkpoints (Click to expand) </summary> 
 
 All weights live under `./ckpts/` after download.
 
@@ -148,7 +143,7 @@ All weights live under `./ckpts/` after download.
 | `HY15/Action2V/dmd`                                                       | HY 1.5   | Phase 2 Stage 3                     | **4-step real-time inference**         | [HF](https://huggingface.co/MIN-Lab/minWM)            |
 | `HY15/TI2V/{bidirectional,ar_diffusion_tf,causal_ode,causal_cd,dmd}`      | HY 1.5   | Same 4 stages, TI2V variant         | TI2V pipeline                          | [HF](https://huggingface.co/MIN-Lab/minWM)            |
 
-
+</details>
 
 ## 🚀 Quick Start
 
@@ -221,8 +216,11 @@ OUTPUT_DIR=./outputs/quickstart_hy_ti2v \
 
 Three model lines × two phases × four stages, each documented as **(1) Model download → (2) Data preparation → (3) Training script → (4) Validation**. Full reproduction guides are split by backbone:
 
-- 📗 [`training_wan.md`](training_wan.md) — **Wan Action2V** + **Wan T2V** (Wan 2.1 backbone)
-- 📘 [`training_hunyuan.md`](training_hunyuan.md) — **HY Action2V** + **HY TI2V** (HunyuanVideo 1.5 backbone)
+- 📗 [`training_wan.md`](training_wan.md)
+    -  **Wan Action2V**  (Wan 2.1 backbone)
+- 📘 [`training_hunyuan.md`](training_hunyuan.md)
+    — **HY Action2V** (HY1.5-8B backbone)
+    - **HY TI2V** (HY1.5-8B backbone)
 
 ## 📚 Citation
 

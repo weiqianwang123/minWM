@@ -173,6 +173,5 @@ preencoded/
 data/
 *mp4
 .safetensors
-.claude
 dataset
 Wan21/wan_models
