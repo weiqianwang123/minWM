@@ -532,6 +532,10 @@ def run_inference_rollout(model, data, neg_prompts, device, num_steps, shift,
     AR rollout chunk-by-chunk denoising with KV cache.
     When viewmats/Ks are provided, passes per-chunk camera tensors to model (ProPE mode).
     """
+    torch.cuda.synchronize()
+    _chunk0_t0 = time.perf_counter()
+    chunk0_latency = None
+
     image_cond = data["image_cond"].to(device, dtype=torch.bfloat16)
     prompt_embed = data["prompt_embeds"].to(device, dtype=torch.bfloat16)
     prompt_mask = data["prompt_mask"].to(device, dtype=torch.bfloat16)
@@ -640,6 +644,10 @@ def run_inference_rollout(model, data, neg_prompts, device, num_steps, shift,
             latent_chunk = scheduler.step(pred, t, latent_chunk, return_dict=False)[0]
             latents[:, :, start_idx:end_idx] = latent_chunk
 
+        if chunk_i == 0:
+            torch.cuda.synchronize()
+            chunk0_latency = time.perf_counter() - _chunk0_t0
+
         # Phase 3: cache denoised chunk vision KV
         denoised_chunk = latents[:, :, start_idx:end_idx]
         denoised_cond = cond_input[:, :, start_idx:end_idx]
@@ -685,7 +693,7 @@ def run_inference_rollout(model, data, neg_prompts, device, num_steps, shift,
                         kv_cache_neg[j]["v_vision"] = torch.cat(
                             [kv_cache_neg[j]["v_vision"], new_kv_neg[j]["v_vision"]], dim=2)
 
-    return latents
+    return latents, chunk0_latency
 
 
 # ---------------------------------------------------------------------------
@@ -787,6 +795,7 @@ def main():
     os.makedirs(args.output_dir, exist_ok=True)
 
     # ── Process each assigned sample ──
+    chunk0_latencies = []  # rank 0: collect from 2nd prompt onward
     for task_idx, (sample_idx, example) in enumerate(my_examples):
         trajectory = (example.get("trajectory") or args.trajectory) if camera_mode else None
 
@@ -850,18 +859,32 @@ def main():
         # Run inference
         t0 = time.perf_counter()
         if args.mode == "bidirectional":
+            torch.cuda.synchronize()
+            _t0 = time.perf_counter()
             x = run_inference_bidirectional(
                 model, data, neg_prompts, device,
                 args.num_inference_steps, args.shift, args.guidance_scale,
                 viewmats, Ks, action,
             )
+            torch.cuda.synchronize()
+            infer_lat = time.perf_counter() - _t0
+            if rank == 0:
+                if len(chunk0_latencies) >= 1:
+                    chunk0_latencies.append(infer_lat)
+                else:
+                    chunk0_latencies.append(None)
         else:
-            x = run_inference_rollout(
+            x, chunk0_lat = run_inference_rollout(
                 model, data, neg_prompts, device,
                 args.num_inference_steps, args.shift, args.guidance_scale,
                 args.stabilization_level, args.chunk_latent_frames,
                 viewmats, Ks, action,
             )
+            if rank == 0:
+                if len(chunk0_latencies) >= 1:
+                    chunk0_latencies.append(chunk0_lat)
+                else:
+                    chunk0_latencies.append(None)
 
         elapsed = time.perf_counter() - t0
         print(f"[rank {rank}] Inference done in {elapsed:.1f}s, decoding...")
@@ -875,6 +898,12 @@ def main():
         torch.cuda.empty_cache()
 
     # All ranks done
+    if rank == 0:
+        valid = [v for v in chunk0_latencies[1:] if v is not None]
+        if valid:
+            label = "full inference" if args.mode == "bidirectional" else "chunk0"
+            print(f"[timing] rank0 {label} latency (from 2nd prompt): avg={sum(valid)/len(valid):.3f}s over {len(valid)} samples")
+
     dist.destroy_process_group()
     if rank == 0:
         print("All done.")
