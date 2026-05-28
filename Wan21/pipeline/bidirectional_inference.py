@@ -1,4 +1,5 @@
 from typing import List, Optional
+import time
 import torch
 
 from wan_utils.wan_wrapper import WanDiffusionWrapper, WanTextEncoder, WanVAEWrapper
@@ -30,6 +31,9 @@ class BidirectionalInferencePipeline(torch.nn.Module):
             timesteps = torch.cat((self.scheduler.timesteps.cpu(), torch.tensor([0], dtype=torch.float32)))
             self.denoising_step_list = timesteps[1000 - self.denoising_step_list]
 
+        # Latency to first denoised latent (excludes VAE decode), set per-call.
+        self.last_chunk0_latency = None
+
     def inference(self, noise: torch.Tensor, text_prompts: List[str],
                   return_latents=False, initial_latent: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
@@ -45,6 +49,12 @@ class BidirectionalInferencePipeline(torch.nn.Module):
         conditional_dict = self.text_encoder(
             text_prompts=text_prompts
         )
+
+        # Start chunk0 latency timer AFTER text encoder, BEFORE VAE decode
+        # — matches HY15 latency definition (excludes both text encoder and decode).
+        torch.cuda.synchronize()
+        _chunk0_t0 = time.perf_counter()
+        self.last_chunk0_latency = None
 
         # initial point
         noisy_image_or_video = noise
@@ -66,6 +76,11 @@ class BidirectionalInferencePipeline(torch.nn.Module):
                 torch.randn_like(pred_image_or_video.flatten(0, 1)),
                 next_timestep.flatten(0, 1)
             ).unflatten(0, noise.shape[:2])
+
+        # Stop chunk0 timer once the first (and only) denoised latent is ready,
+        # before VAE decode — matches HY15 latency definition.
+        torch.cuda.synchronize()
+        self.last_chunk0_latency = time.perf_counter() - _chunk0_t0
 
         video = self.vae.decode_to_pixel(pred_image_or_video)
         video = (video * 0.5 + 0.5).clamp(0, 1)

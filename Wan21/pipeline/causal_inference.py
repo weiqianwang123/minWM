@@ -79,11 +79,6 @@ class CausalInferencePipeline(torch.nn.Module):
         """
         batch_size, num_frames, num_channels, height, width = noise.shape
 
-        # Start chunk0 latency timer (matches HY15: from entry to end of first chunk).
-        torch.cuda.synchronize()
-        _chunk0_t0 = time.perf_counter()
-        self.last_chunk0_latency = None
-
         if not self.independent_first_frame or (self.independent_first_frame and initial_latent is not None):
             # If the first frame is independent and the first frame is provided, then the number of frames in the
             # noise should still be a multiple of num_frame_per_block
@@ -104,6 +99,12 @@ class CausalInferencePipeline(torch.nn.Module):
         if low_memory:
             gpu_memory_preservation = get_cuda_free_memory_gb(gpu) + 5
             move_model_to_device_with_memory_preservation(self.text_encoder, target_device=gpu, preserved_memory_gb=gpu_memory_preservation)
+
+        # Start chunk0 latency timer AFTER text encoder, BEFORE VAE decode
+        # — matches HY15 latency definition (excludes both text encoder and decode).
+        torch.cuda.synchronize()
+        _chunk0_t0 = time.perf_counter()
+        self.last_chunk0_latency = None
 
         output = torch.zeros(
             [batch_size, num_output_frames, num_channels, height, width],

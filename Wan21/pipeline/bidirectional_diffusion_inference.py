@@ -1,5 +1,6 @@
 from tqdm import tqdm
 from typing import List, Optional
+import time
 import torch
 
 from wan.utils.fm_solvers import FlowDPMSolverMultistepScheduler, get_sampling_sigmas, retrieve_timesteps
@@ -31,6 +32,9 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
 
         self.args = args
 
+        # Latency to first denoised latent (excludes VAE decode), set per-call.
+        self.last_chunk0_latency = None
+
     def inference(
         self,
         noise: torch.Tensor,
@@ -58,6 +62,10 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
             text_prompts=[self.args.negative_prompt] * len(text_prompts)
         )
 
+        torch.cuda.synchronize()
+        _chunk0_t0 = time.perf_counter()
+        self.last_chunk0_latency = None
+
         latents = noise
 
         sample_scheduler = self._initialize_sample_scheduler(noise)
@@ -79,6 +87,12 @@ class BidirectionalDiffusionInferencePipeline(torch.nn.Module):
             latents = temp_x0.squeeze(0)
 
         x0 = latents
+
+        # Stop chunk0 timer once the first (and only) denoised latent is ready,
+        # before VAE decode — matches HY15 latency definition.
+        torch.cuda.synchronize()
+        self.last_chunk0_latency = time.perf_counter() - _chunk0_t0
+
         video = self.vae.decode_to_pixel(x0)
         video = (video * 0.5 + 0.5).clamp(0, 1)
 

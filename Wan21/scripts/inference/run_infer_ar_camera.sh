@@ -11,7 +11,7 @@ CONFIG_PATH="${CONFIG_PATH:-Wan21/configs/ar_camera_tf.yaml}"
 CHECKPOINT_PATH="${CHECKPOINT_PATH:-./ckpts/Wan21/Action2V/ar_diffusion_tf/model.pt}"
 DATA_PATH="${DATA_PATH:-Wan21/prompts/demos.txt}"
 OUTPUT_FOLDER="${OUTPUT_FOLDER:-output/ar_camera}"
-SP_SIZE="${SP_SIZE:-4}"
+SP_SIZE="${SP_SIZE:-1}"
 
 # ===== Camera Trajectory =====
 TRAJECTORY="${TRAJECTORY:-w*19}"
@@ -24,7 +24,7 @@ else
   TRAJ_ARGS="--trajectory $TRAJECTORY"
 fi
 
-NUM_GPUS_PER_NODE=8
+NUM_GPUS_PER_NODE=1
 NNODES=${WORLD_SIZE:-1}
 NODE_RANK=${RANK:-0}
 MASTER_ADDR=${MASTER_ADDR:-"localhost"}
